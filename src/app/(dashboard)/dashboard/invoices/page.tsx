@@ -20,13 +20,6 @@ import toast from 'react-hot-toast'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-// Extend jsPDF type to include autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: typeof autoTable
-  }
-}
-
 export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices)
@@ -61,12 +54,9 @@ export default function InvoicesPage() {
   })
 
   const generatePDF = (invoice: Invoice) => {
-    const doc = new jsPDF() as jsPDF & { autoTable: typeof autoTable }
+    const doc = new jsPDF()
     const client = getClient(invoice.client_id)
     const session = getSession(invoice.session_id)
-
-    // Enable autoTable
-    doc.autoTable = autoTable
 
     // Header
     doc.setFontSize(24)
@@ -123,7 +113,7 @@ export default function InvoicesPage() {
       ['Total', '', `${invoice.total_amount}€`],
     ]
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 90,
       head: [['Description', 'Détails', 'Montant']],
       body: tableData,

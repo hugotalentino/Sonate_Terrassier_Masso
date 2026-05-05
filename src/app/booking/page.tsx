@@ -8,6 +8,7 @@ import { format, addWeeks, startOfWeek, endOfWeek, eachDayOfInterval } from 'dat
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import autoTable from 'jspdf-autotable'
 
 type BookingStep = 'calendar' | 'details' | 'health' | 'confirmation'
 
