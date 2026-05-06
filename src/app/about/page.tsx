@@ -23,6 +23,14 @@ export default function TherapistPage() {
   useEffect(() => {
     const loadTherapistProfile = async () => {
       try {
+        // Check if Supabase is configured
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://demo.supabase.co') {
+          // Use mock data if Supabase not configured
+          setTherapist(mockTherapist as TherapistProfile)
+          setLoading(false)
+          return
+        }
+
         // Try to load from Supabase first
         const profile = await getTherapistProfile('demo-user-id')
         setTherapist(profile)

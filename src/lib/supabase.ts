@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Client, Appointment, Invoice, Session, User, TherapistProfile, HealthForm } from '@/types'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'demo-key'
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Supabase environment variables are not set')
-}
-
+// Create client with fallback for build time
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Check if we're in demo mode (no real Supabase connection)
+export const isDemoMode = () => !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://demo.supabase.co'
 
 // ============ HEALTH FORMS ============
 export const createHealthForm = async (healthForm: Omit<HealthForm, 'id' | 'created_at'>) => {
@@ -174,6 +174,11 @@ export const updateInvoice = async (id: string, updates: Partial<Invoice>) => {
 
 // ============ THERAPIST PROFILE ============
 export const createTherapistProfile = async (profile: Omit<TherapistProfile, 'id' | 'created_at' | 'updated_at'>) => {
+  if (isDemoMode()) {
+    console.log('Demo mode: skipping Supabase operation')
+    return profile as TherapistProfile
+  }
+
   const { data, error } = await supabase
     .from('therapist_profiles')
     .insert([profile])
@@ -185,6 +190,12 @@ export const createTherapistProfile = async (profile: Omit<TherapistProfile, 'id
 }
 
 export const getTherapistProfile = async (userId: string) => {
+  if (isDemoMode()) {
+    // Return mock data in demo mode
+    const { mockTherapist } = await import('@/lib/mock-data')
+    return mockTherapist as TherapistProfile
+  }
+
   const { data, error } = await supabase
     .from('therapist_profiles')
     .select('*')
