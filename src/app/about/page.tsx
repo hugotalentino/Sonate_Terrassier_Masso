@@ -1,12 +1,15 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { mockTherapist } from '@/lib/mock-data'
-import { 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Instagram, 
+import { getTherapistProfile } from '@/lib/supabase'
+import { TherapistProfile } from '@/types'
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Instagram,
   ArrowRight,
   Star,
   Award,
@@ -14,7 +17,49 @@ import {
 } from 'lucide-react'
 
 export default function TherapistPage() {
-  const specialties = mockTherapist.specialties || []
+  const [therapist, setTherapist] = useState<TherapistProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadTherapistProfile = async () => {
+      try {
+        // Try to load from Supabase first
+        const profile = await getTherapistProfile('demo-user-id')
+        setTherapist(profile)
+      } catch (error) {
+        console.log('Using mock data:', error)
+        // Fallback to mock data
+        setTherapist(mockTherapist as TherapistProfile)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTherapistProfile()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-sage-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!therapist) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-sage-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Profil thérapeute non trouvé</p>
+        </div>
+      </div>
+    )
+  }
+
+  const specialties = therapist.specialties || []
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-sage-50">
@@ -25,10 +70,10 @@ export default function TherapistPage() {
             {/* Photo */}
             <div className="flex justify-center">
               <div className="w-48 h-48 bg-gradient-to-br from-primary-200 to-sage-200 rounded-2xl flex items-center justify-center shadow-lg">
-                {mockTherapist.photo_url ? (
-                  <img 
-                    src={mockTherapist.photo_url} 
-                    alt={`${mockTherapist.first_name} ${mockTherapist.last_name}`}
+                {therapist.photo_url ? (
+                  <img
+                    src={therapist.photo_url}
+                    alt={`${therapist.first_name} ${therapist.last_name}`}
                     className="w-full h-full object-cover rounded-2xl"
                   />
                 ) : (
@@ -41,7 +86,7 @@ export default function TherapistPage() {
             <div className="space-y-4">
               <div>
                 <h1 className="text-4xl font-bold text-gray-900">
-                  {mockTherapist.first_name} {mockTherapist.last_name}
+                  {therapist.first_name} {therapist.last_name}
                 </h1>
                 <p className="text-xl text-primary-600 font-medium mt-1">
                   Massothérapeute
@@ -49,7 +94,7 @@ export default function TherapistPage() {
               </div>
 
               <p className="text-gray-600 leading-relaxed text-lg">
-                {mockTherapist.bio}
+                {therapist.bio}
               </p>
 
               {/* Specialties */}
@@ -96,8 +141,8 @@ export default function TherapistPage() {
                 <Phone className="w-5 h-5 text-primary-600 mt-1 flex-shrink-0" />
                 <div>
                   <p className="text-sm text-gray-500">Téléphone</p>
-                  <a href={`tel:${mockTherapist.phone}`} className="text-lg font-medium text-gray-900 hover:text-primary-600 transition-colors">
-                    {mockTherapist.phone}
+                  <a href={`tel:${therapist.phone}`} className="text-lg font-medium text-gray-900 hover:text-primary-600 transition-colors">
+                    {therapist.phone}
                   </a>
                 </div>
               </div>
@@ -117,23 +162,23 @@ export default function TherapistPage() {
                 <div>
                   <p className="text-sm text-gray-500">Adresse</p>
                   <p className="text-lg font-medium text-gray-900">
-                    {mockTherapist.company_address}
+                    {therapist.company_address}
                   </p>
                 </div>
               </div>
 
-              {mockTherapist.instagram && (
+              {therapist.instagram && (
                 <div className="flex items-start gap-4">
                   <Instagram className="w-5 h-5 text-pink-600 mt-1 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-gray-500">Instagram</p>
                     <a 
-                      href={`https://instagram.com/${mockTherapist.instagram}`}
+                      href={`https://instagram.com/${therapist.instagram}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-lg font-medium text-gray-900 hover:text-pink-600 transition-colors"
                     >
-                      @{mockTherapist.instagram}
+                      @{therapist.instagram}
                     </a>
                   </div>
                 </div>

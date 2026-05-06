@@ -8,7 +8,7 @@ import { format, addWeeks, startOfWeek, endOfWeek, eachDayOfInterval } from 'dat
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import autoTable from 'jspdf-autotable'
+import { createAppointment, createHealthForm } from '@/lib/supabase'
 
 type BookingStep = 'calendar' | 'details' | 'health' | 'confirmation'
 
@@ -122,18 +122,62 @@ export default function BookingPage() {
     }
   }
 
+  const calculateEndTime = (startTime: string): string => {
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const endMinutes = minutes + 60 // 60 minutes massage
+    const endHours = hours + Math.floor(endMinutes / 60)
+    const finalMinutes = endMinutes % 60
+    return `${endHours.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateStep()) return
 
     setSubmitting(true)
 
-    // Simulate API call to save booking
-    setTimeout(() => {
-      setSubmitting(false)
+    try {
+      // 1. Create health form first
+      const healthFormData = {
+        current_pain: bookingData.health_form.current_pain,
+        sensitive_zones: bookingData.health_form.sensitive_zones,
+        medical_conditions: bookingData.health_form.medical_conditions,
+        pregnancy: bookingData.health_form.pregnancy,
+        stress_level: bookingData.health_form.stress_level,
+        massage_objective: bookingData.health_form.massage_objective,
+        additional_notes: bookingData.health_form.additional_notes,
+      }
+
+      const healthForm = await createHealthForm(healthFormData)
+
+      // 2. Create appointment
+      const appointmentData = {
+        therapist_id: 'demo-user-id', // In a real app, this would be the actual therapist ID
+        client_id: '', // Empty for new clients
+        date: selectedDate!.toISOString().split('T')[0],
+        start_time: selectedTime!,
+        end_time: calculateEndTime(selectedTime!),
+        duration: 60, // Default 60 minutes
+        type: bookingData.massage_type,
+        status: 'confirmed' as const,
+        notes: bookingData.notes,
+        health_form_id: healthForm.id,
+        is_new_client: true,
+        client_name: `${bookingData.first_name} ${bookingData.last_name}`,
+        client_email: bookingData.email,
+        client_phone: bookingData.phone,
+      }
+
+      await createAppointment(appointmentData)
+
       setCurrentStep('confirmation')
       toast.success('Rendez-vous confirmé ! Vous recevrez un email de confirmation.')
-    }, 1000)
+    } catch (error) {
+      console.error('Erreur lors de la réservation:', error)
+      toast.error('Erreur lors de la réservation. Veuillez réessayer.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const goBack = () => {
