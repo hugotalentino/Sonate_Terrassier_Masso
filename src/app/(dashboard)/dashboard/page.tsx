@@ -13,20 +13,43 @@ import {
   Check
 } from 'lucide-react'
 import Link from 'next/link'
-import { mockDashboardStats, mockAppointments, mockClients } from '@/lib/mock-data'
+import { mockDashboardStats } from '@/lib/mock-data'
+import { getAppointments, getClients } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function DashboardPage() {
+  const { therapistProfile } = useAuth()
+  const [appointments, setAppointments] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
   const [acceptedClients, setAcceptedClients] = useState<string[]>([])
 
-  // Détection des nouveaux clients
+  // Load appointments and clients for the authenticated therapist
+  useEffect(() => {
+    const loadData = async () => {
+      if (!therapistProfile) return
+      try {
+        const [appointmentsData, clientsData] = await Promise.all([
+          getAppointments(therapistProfile.id),
+          getClients(therapistProfile.id),
+        ])
+        setAppointments(appointmentsData)
+        setClients(clientsData)
+      } catch (error) {
+        console.error('Erreur chargement dashboard :', error)
+      }
+    }
+
+    loadData()
+  }, [therapistProfile])
+
   const detectNewClients = () => {
-    return mockAppointments.filter(apt => {
-      if (!apt.client) return false
-      const existingClient = mockClients.find(
-        client => client.email === apt.client?.email || client.phone === apt.client?.phone
+    return appointments.filter(apt => {
+      if (!apt.client_email && !apt.client_phone) return false
+      const existingClient = clients.find(
+        client => client.email === apt.client_email || client.phone === apt.client_phone
       )
       return !existingClient && apt.is_new_client !== false
     })
@@ -69,18 +92,18 @@ export default function DashboardPage() {
     },
   ]
 
-  const todayAppointments = mockAppointments.filter(
+  const todayAppointments = appointments.filter(
     apt => apt.date === new Date().toISOString().split('T')[0]
   )
 
-  const recentClients = mockClients.slice(0, 3)
+  const recentClients = clients.slice(0, 3)
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Bonjour, Marie 👋
+          Bonjour, {therapistProfile?.first_name ?? 'Thérapeute'} 👋
         </h1>
         <p className="text-gray-600 mt-1">
           Voici ce qui se passe aujourd'hui, {format(new Date(), 'EEEE d MMMM', { locale: fr })}
@@ -113,7 +136,7 @@ export default function DashboardPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
-            href="/booking"
+            href={therapistProfile?.slug ? `/therapist/${therapistProfile.slug}/booking` : '/booking'}
             target="_blank"
             className="flex items-center gap-3 p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors group"
           >

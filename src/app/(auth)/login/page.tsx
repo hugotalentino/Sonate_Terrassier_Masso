@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { signIn, isDemoMode } from '@/lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,13 +16,25 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!email || !password) {
+      toast.error('Veuillez remplir tous les champs')
+      return
+    }
+
     setLoading(true)
 
-    // Demo mode - accept any credentials
-    setTimeout(() => {
+    try {
+      await signIn(email, password)
       toast.success('Connexion réussie !')
       router.push('/dashboard')
-    }, 1000)
+    } catch (error) {
+      console.error('Login error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la connexion'
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -114,12 +127,13 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo hint */}
-          <div className="mt-4 p-3 bg-primary-50 rounded-lg">
-            <p className="text-sm text-primary-700 text-center">
-              💡 Mode démo : cliquez simplement sur "Se connecter"
-            </p>
-          </div>
+          {isDemoMode() && (
+            <div className="mt-4 p-3 bg-primary-50 rounded-lg">
+              <p className="text-sm text-primary-700 text-center">
+                💡 Mode démo : remplissez n'importe quels identifiants pour tester
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

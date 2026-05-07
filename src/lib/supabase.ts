@@ -217,3 +217,83 @@ export const updateTherapistProfile = async (userId: string, updates: Partial<Th
   if (error) throw error
   return data
 }
+
+export const getTherapistProfileBySlug = async (slug: string) => {
+  if (isDemoMode()) {
+    const { mockTherapist } = await import('@/lib/mock-data')
+    return mockTherapist as TherapistProfile
+  }
+
+  const { data, error } = await supabase
+    .from('therapist_profiles')
+    .select('*')
+    .eq('slug', slug)
+    .single()
+
+  if (error) throw error
+  return data as TherapistProfile
+}
+
+// ============ AUTHENTICATION ============
+export const signUp = async (email: string, password: string, firstName: string, lastName: string, phone: string) => {
+  if (isDemoMode()) {
+    // Demo mode: simulate signup
+    return { user: { id: 'demo-user-id', email }, session: { access_token: 'demo-token' } }
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone,
+      },
+    },
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const signIn = async (email: string, password: string) => {
+  if (isDemoMode()) {
+    // Demo mode: simulate login
+    return { user: { id: 'demo-user-id', email }, session: { access_token: 'demo-token' } }
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const signOut = async () => {
+  if (isDemoMode()) {
+    return { error: null }
+  }
+
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
+export const getCurrentUser = async () => {
+  if (isDemoMode()) {
+    return null
+  }
+
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
+
+export const getSession = async () => {
+  if (isDemoMode()) {
+    return { data: { session: null }, error: null }
+  }
+
+  return await supabase.auth.getSession()
+}

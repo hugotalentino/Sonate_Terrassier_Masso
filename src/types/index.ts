@@ -10,6 +10,7 @@ export interface User {
 export interface TherapistProfile {
   id: string
   user_id: string
+  slug: string // For public URL: /therapist/[slug]
   first_name: string
   last_name: string
   phone: string
@@ -64,7 +65,10 @@ export interface Appointment {
   type: string // massage type
   status: 'confirmed' | 'cancelled' | 'completed'
   notes: string
-  health_form?: HealthForm
+  health_form_id?: string
+  client_name?: string
+  client_email?: string
+  client_phone?: string
   is_new_client?: boolean
   created_at: string
   updated_at: string

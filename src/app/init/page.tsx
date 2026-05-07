@@ -26,6 +26,7 @@ export default function InitPage() {
       // Create therapist profile
       const therapistProfile = {
         user_id: userId,
+        slug: mockTherapist.slug || 'marie-massage',
         first_name: mockTherapist.first_name,
         last_name: mockTherapist.last_name,
         phone: mockTherapist.phone,

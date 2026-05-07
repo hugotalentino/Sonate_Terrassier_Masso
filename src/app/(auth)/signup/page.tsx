@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { signUp, signIn, createTherapistProfile, isDemoMode } from '@/lib/supabase'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -41,13 +42,66 @@ export default function SignupPage() {
       return
     }
 
+    if (formData.password.length < 6) {
+      toast.error('Le mot de passe doit contenir au minimum 6 caractères')
+      return
+    }
+
     setLoading(true)
 
-    // Demo mode
-    setTimeout(() => {
+    try {
+      // Sign up with Supabase Auth
+      const signUpResult = await signUp(
+        formData.email,
+        formData.password,
+        formData.firstName,
+        formData.lastName,
+        formData.phone
+      )
+
+      const user = (signUpResult as any)?.user || (signUpResult as any)?.session?.user
+      if (!user) {
+        throw new Error('Erreur lors de la création du compte')
+      }
+
+      // Generate slug from name
+      const slug = `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}`.replace(/\s+/g, '-')
+
+      // Create therapist profile
+      await createTherapistProfile({
+        user_id: user.id,
+        slug,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone,
+        license_number: '',
+        company_name: '',
+        company_address: '',
+        company_phone: '',
+        tax_rate: 0.2,
+        logo_url: '',
+        buffer_time: 15,
+        bio: '',
+        photo_url: '',
+        instagram: '',
+        specialties: [],
+      })
+
+      // If Supabase did not automatically sign in, try to sign in immediately
+      if (!isDemoMode() && !signUpResult.session) {
+        await signIn(formData.email, formData.password)
+      }
+
       toast.success('Compte créé avec succès !')
-      router.push('/dashboard')
-    }, 1000)
+      
+      router.push('/dashboard/settings')
+    } catch (error) {
+      console.error('Signup error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la création du compte'
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

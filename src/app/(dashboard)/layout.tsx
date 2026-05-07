@@ -1,21 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { 
   LayoutDashboard, 
   Users, 
   Calendar, 
   FileText, 
   Settings, 
-  LogOut,
   Menu,
   X,
   Bell,
-  ChevronDown
+  ChevronDown,
+  LogOut
 } from 'lucide-react'
 import { mockTherapist } from '@/lib/mock-data'
+import { useAuth } from '@/lib/auth-context'
 
 const navigation = [
   { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
@@ -31,8 +32,35 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const { therapistProfile, signOut, loading, isAuthenticated } = useAuth()
+  const therapist = therapistProfile ?? mockTherapist
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/login')
+    }
+  }, [loading, isAuthenticated, router])
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de l'authentification...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render dashboard if not authenticated
+  if (!isAuthenticated) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,25 +124,26 @@ export default function DashboardLayout({
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                 <span className="text-primary-700 font-medium">
-                  {mockTherapist.first_name[0]}{mockTherapist.last_name[0]}
+                  {therapist.first_name[0]}{therapist.last_name[0]}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {mockTherapist.first_name} {mockTherapist.last_name}
+                  {therapist.first_name} {therapist.last_name}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
                   Thérapeute
                 </p>
               </div>
             </div>
-            <Link 
-              href="/login"
+            <button
+              type="button"
+              onClick={signOut}
               className="flex items-center gap-2 mt-4 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
               Déconnexion
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
