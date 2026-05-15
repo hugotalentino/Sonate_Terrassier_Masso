@@ -5,6 +5,22 @@ import { User } from '@supabase/supabase-js'
 import { supabase, getSession, getCurrentUser } from './supabase'
 import { TherapistProfile } from '@/types'
 
+const slugify = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+
+const buildProfileSlug = (firstName: string, lastName: string) => {
+  const base = `${slugify(firstName)}-${slugify(lastName)}`.replace(/^-+|-+$/g, '')
+  const fallback = 'therapeute'
+  const suffix = Math.random().toString(36).slice(2, 7)
+  return `${base || fallback}-${suffix}`
+}
+
 interface AuthContextType {
   user: User | null
   therapistProfile: TherapistProfile | null
@@ -20,6 +36,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [therapistProfile, setTherapistProfile] = useState<TherapistProfile | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const ensureTherapistProfile = async (authUser: User) => {
+    const { data, error } = await supabase
+      .from('therapist_profiles')
+      .select('*')
+      .eq('user_id', authUser.id)
+      .single()
+
+    if (!error && data) {
+      return data as TherapistProfile
+    }
+
+    const firstName = (authUser.user_metadata?.first_name as string) || ''
+    const lastName = (authUser.user_metadata?.last_name as string) || ''
+    const phone = (authUser.user_metadata?.phone as string) || ''
+
+    const { data: created, error: insertError } = await supabase
+      .from('therapist_profiles')
+      .insert([
+        {
+          user_id: authUser.id,
+          slug: buildProfileSlug(firstName, lastName),
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          license_number: '',
+          company_name: '',
+          company_address: '',
+          company_phone: '',
+          tax_rate: 20,
+          logo_url: '',
+          buffer_time: 15,
+          bio: '',
+          photo_url: '',
+          instagram: '',
+          specialties: [],
+        },
+      ])
+      .select('*')
+      .single()
+
+    if (insertError) {
+      throw insertError
+    }
+
+    return created as TherapistProfile
+  }
 
   const refreshProfile = async () => {
     if (!user) return
@@ -49,19 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentUser) {
           setUser(currentUser)
 
-          // Load therapist profile
           try {
-            const { data } = await supabase
-              .from('therapist_profiles')
-              .select('*')
-              .eq('user_id', currentUser.id)
-              .single()
-
-            if (data) {
-              setTherapistProfile(data)
-            }
+            const profile = await ensureTherapistProfile(currentUser)
+            setTherapistProfile(profile)
           } catch (error) {
-            console.log('No therapist profile found yet')
+            console.error('Error loading/creating therapist profile:', error)
           }
         }
       } catch (error) {
@@ -78,19 +133,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         setUser(session.user)
 
-        // Load therapist profile
         try {
-          const { data } = await supabase
-            .from('therapist_profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single()
-
-          if (data) {
-            setTherapistProfile(data)
-          }
+          const profile = await ensureTherapistProfile(session.user)
+          setTherapistProfile(profile)
         } catch (error) {
-          console.log('No therapist profile found')
+          console.error('Error loading/creating therapist profile:', error)
         }
       } else {
         setUser(null)

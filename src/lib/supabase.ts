@@ -241,10 +241,13 @@ export const signUp = async (email: string, password: string, firstName: string,
     return { user: { id: 'demo-user-id', email }, session: { access_token: 'demo-token' } }
   }
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
+      emailRedirectTo: appUrl ? `${appUrl}/login` : undefined,
       data: {
         first_name: firstName,
         last_name: lastName,

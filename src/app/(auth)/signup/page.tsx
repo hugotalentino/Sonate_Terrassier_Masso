@@ -5,7 +5,24 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { signUp, signIn, createTherapistProfile, isDemoMode } from '@/lib/supabase'
+import { signUp, createTherapistProfile, isDemoMode } from '@/lib/supabase'
+
+const slugify = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+
+const buildSignupSlug = (firstName: string, lastName: string) => {
+  const base = `${slugify(firstName)}-${slugify(lastName)}`.replace(/^-+|-+$/g, '')
+  const fallback = 'therapeute'
+  const candidate = base || fallback
+  const suffix = Math.random().toString(36).slice(2, 7)
+  return `${candidate}-${suffix}`
+}
 
 export default function SignupPage() {
   const router = useRouter()
@@ -64,13 +81,18 @@ export default function SignupPage() {
         throw new Error('Erreur lors de la création du compte')
       }
 
-      // Generate slug from name
-      const slug = `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}`.replace(/\s+/g, '-')
+      // If Supabase did not create a session, email confirmation is probably enabled.
+      // In that case profile creation will be done on first authenticated login.
+      if (!isDemoMode() && !signUpResult.session) {
+        toast.success('Compte créé. Vérifiez votre email puis connectez-vous.')
+        router.push('/login')
+        return
+      }
 
-      // Create therapist profile
+      // Create therapist profile when session is available
       await createTherapistProfile({
         user_id: user.id,
-        slug,
+        slug: buildSignupSlug(formData.firstName, formData.lastName),
         first_name: formData.firstName,
         last_name: formData.lastName,
         phone: formData.phone,
@@ -78,7 +100,7 @@ export default function SignupPage() {
         company_name: '',
         company_address: '',
         company_phone: '',
-        tax_rate: 0.2,
+        tax_rate: 20,
         logo_url: '',
         buffer_time: 15,
         bio: '',
@@ -87,13 +109,7 @@ export default function SignupPage() {
         specialties: [],
       })
 
-      // If Supabase did not automatically sign in, try to sign in immediately
-      if (!isDemoMode() && !signUpResult.session) {
-        await signIn(formData.email, formData.password)
-      }
-
       toast.success('Compte créé avec succès !')
-      
       router.push('/dashboard/settings')
     } catch (error) {
       console.error('Signup error:', error)
