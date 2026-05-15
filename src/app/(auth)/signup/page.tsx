@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { signUp, createTherapistProfile, isDemoMode } from '@/lib/supabase'
+import { signUp, signIn, createTherapistProfile, isDemoMode } from '@/lib/supabase'
 
 const slugify = (value: string) =>
   value
@@ -67,50 +67,74 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      // Sign up with Supabase Auth
-      const signUpResult = await signUp(
-        formData.email,
-        formData.password,
-        formData.firstName,
-        formData.lastName,
-        formData.phone
-      )
+      const signupResponse = await fetch('/api/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+        }),
+      })
 
-      const user = (signUpResult as any)?.user || (signUpResult as any)?.session?.user
-      if (!user) {
-        throw new Error('Erreur lors de la création du compte')
-      }
-
-      // If Supabase did not create a session, email confirmation is probably enabled.
-      // In that case profile creation will be done on first authenticated login.
-      if (!isDemoMode() && !signUpResult.session) {
-        toast.success('Compte créé. Vérifiez votre email puis connectez-vous.')
-        router.push('/login')
+      if (signupResponse.ok) {
+        await signIn(formData.email, formData.password)
+        toast.success('Compte créé avec succès !')
+        router.push('/dashboard/settings')
         return
       }
 
-      // Create therapist profile when session is available
-      await createTherapistProfile({
-        user_id: user.id,
-        slug: buildSignupSlug(formData.firstName, formData.lastName),
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        phone: formData.phone,
-        license_number: '',
-        company_name: '',
-        company_address: '',
-        company_phone: '',
-        tax_rate: 20,
-        logo_url: '',
-        buffer_time: 15,
-        bio: '',
-        photo_url: '',
-        instagram: '',
-        specialties: [],
-      })
+      const signupPayload = await signupResponse.json().catch(() => null)
 
-      toast.success('Compte créé avec succès !')
-      router.push('/dashboard/settings')
+      if (signupResponse.status === 501) {
+        const signUpResult = await signUp(
+          formData.email,
+          formData.password,
+          formData.firstName,
+          formData.lastName,
+          formData.phone
+        )
+
+        const user = (signUpResult as any)?.user || (signUpResult as any)?.session?.user
+        if (!user) {
+          throw new Error('Erreur lors de la création du compte')
+        }
+
+        if (!isDemoMode() && !signUpResult.session) {
+          toast.success('Compte créé. Vérifiez votre email puis connectez-vous.')
+          router.push('/login')
+          return
+        }
+
+        await createTherapistProfile({
+          user_id: user.id,
+          slug: buildSignupSlug(formData.firstName, formData.lastName),
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone: formData.phone,
+          license_number: '',
+          company_name: '',
+          company_address: '',
+          company_phone: '',
+          tax_rate: 20,
+          logo_url: '',
+          buffer_time: 15,
+          bio: '',
+          photo_url: '',
+          instagram: '',
+          specialties: [],
+        })
+
+        toast.success('Compte créé avec succès !')
+        router.push('/dashboard/settings')
+        return
+      }
+
+      throw new Error(signupPayload?.error || 'Erreur lors de la création du compte')
     } catch (error) {
       console.error('Signup error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la création du compte'
