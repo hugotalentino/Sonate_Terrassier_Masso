@@ -241,7 +241,8 @@ export const signUp = async (email: string, password: string, firstName: string,
     return { user: { id: 'demo-user-id', email }, session: { access_token: 'demo-token' } }
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  const runtimeOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || runtimeOrigin
 
   const { data, error } = await supabase.auth.signUp({
     email,
